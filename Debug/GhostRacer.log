@@ -1,0 +1,8 @@
+﻿  StudentWorld.cpp
+C:\Users\elona\Desktop\GhostRacer\GhostRacer\StudentWorld.cpp(213,66): warning C4244: 'argument': conversion from 'const double' to 'int', possible loss of data
+C:\Users\elona\Desktop\GhostRacer\GhostRacer\StudentWorld.cpp(213,55): warning C4244: 'argument': conversion from 'const double' to 'int', possible loss of data
+C:\Users\elona\Desktop\GhostRacer\GhostRacer\StudentWorld.cpp(219,73): warning C4244: 'argument': conversion from 'const double' to 'int', possible loss of data
+C:\Users\elona\Desktop\GhostRacer\GhostRacer\StudentWorld.cpp(219,62): warning C4244: 'argument': conversion from 'const double' to 'int', possible loss of data
+C:\Users\elona\Desktop\GhostRacer\GhostRacer\StudentWorld.cpp(224,68): warning C4244: 'argument': conversion from 'const double' to 'int', possible loss of data
+C:\Users\elona\Desktop\GhostRacer\GhostRacer\StudentWorld.cpp(224,57): warning C4244: 'argument': conversion from 'const double' to 'int', possible loss of data
+  GhostRacer.vcxproj -> C:\Users\elona\Desktop\GhostRacer\Debug\GhostRacer.exe
