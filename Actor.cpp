@@ -1,13 +1,15 @@
 #include "Actor.h"
 #include "StudentWorld.h"
 
-
+///////////////////////////////////////////////////////////////////////////
+// Actor Class Implementation 
+///////////////////////////////////////////////////////////////////////////
 
 // Adjust the x coordinate by dx to move to a position with a y coordinate
 // determined by this actor's vertical speed relative to GhostRacer's
 // vertical speed.  Return true if the new position is within the view;
 // otherwise, return false, with the actor dead.
-bool Actor::moveRelativeToGhostRacerVerticalSpeed(double dx) //moveTo(getX() + dx, relative speed) // dx is getXVelocity()
+bool Actor::moveRelativeToGhostRacerVerticalSpeed(double dx) // dx is getXVelocity() which defaults to 0
 {
 	double vert_speed = getYVelocity() - getWorld()->getRacer()->getYVelocity();
 	double horiz_speed = dx;
@@ -23,6 +25,8 @@ bool Actor::moveRelativeToGhostRacerVerticalSpeed(double dx) //moveTo(getX() + d
 	return true;
 }
 
+// What each actor does during a tick. In general, they do nothing if dead;
+// otherwise, they move (and might do something specialized) 
 void Actor::doSomething()
 {
 	// Actor is destroyed, do nothing
@@ -36,8 +40,10 @@ void Actor::doSomething()
 }
 
 
+///////////////////////////////////////////////////////////////////////////
+// Agent Class Implementation (Derived from Actor)
+///////////////////////////////////////////////////////////////////////////
 
-// Agent Class
 // Do what the spec says happens when hp units of damage is inflicted.
 // Return true if this agent dies as a result, otherwise false.
 bool Agent::takeDamageAndPossiblyDie(int hp)
@@ -51,13 +57,16 @@ bool Agent::takeDamageAndPossiblyDie(int hp)
 		return true;
 
 	}
-	specializedAgentDamageB(); // setDirection(direction);
-	// specializedDamageC();
+	specializedAgentDamageB();
 	return false;
-	
 }
 
-// Ghost Racer Class
+
+///////////////////////////////////////////////////////////////////////////
+// GhostRacer Class Implementation (Derived from Agent)
+///////////////////////////////////////////////////////////////////////////
+
+// What happens when GhostRacer hits left edge, right edge, and player hits keys
 void GhostRacer::doSomethingSpecializedA()
 {
 	int ch;
@@ -69,7 +78,7 @@ void GhostRacer::doSomethingSpecializedA()
 			takeDamageAndPossiblyDie(HP_LOSS_HIT_EDGE);
 			setDirection(FACING_STRAIGHT - INCREMENT_DIR);
 			getWorld()->playSound(soundWhenHurt());
-		}	
+		}
 	}
 
 	// If GhostRacer hits right road edge
@@ -82,7 +91,7 @@ void GhostRacer::doSomethingSpecializedA()
 			getWorld()->playSound(soundWhenHurt());
 
 		}
-			
+
 	}
 
 	// If user hits a key
@@ -121,6 +130,7 @@ void GhostRacer::doSomethingSpecializedA()
 	}
 }
 
+// GhostRacer movement is specialized
 bool GhostRacer::moveRelativeToGhostRacerVerticalSpeed(double dx)
 {
 	double max_shift_per_tick = 4.0;
@@ -132,11 +142,11 @@ bool GhostRacer::moveRelativeToGhostRacerVerticalSpeed(double dx)
 	return true;
 }
 
+//  Ghost Racer can be spun around(by driving over an oil slick).If an oil slick tries
+//	to spin Ghost Racer, Ghost Racer must adjust its direction by a random integer
+//	between[5, 20] degrees clockwise or counterclockwise of its current direction
 void GhostRacer::spin()
 {
-	//  Ghost Racer can be spun around(by driving over an oil slick).If an oil slick tries
-	//	to spin Ghost Racer, Ghost Racer must adjust its direction by a random integer
-	//	between[5, 20] degrees clockwise or counterclockwise of its current direction
 	int changeDir = randInt(5, 20);
 	int negOrPos = randInt(-1, 0) == -1 ? -1 : 1;
 	int newDirection = getDirection() + changeDir * negOrPos;
@@ -144,11 +154,16 @@ void GhostRacer::spin()
 		setDirection(120);
 	else if (newDirection < 60)
 		setDirection(60);
-	else 
+	else
 		setDirection(newDirection);
 }
 
-// Pedestrian Class
+
+///////////////////////////////////////////////////////////////////////////
+// Pedestrian Class Implementation (Derived from NPC)
+///////////////////////////////////////////////////////////////////////////
+
+// All pedstrians have the same movement plan
 void Pedestrian::pickMovePlan()
 {
 	// Pick new movement plan
@@ -169,7 +184,11 @@ void Pedestrian::pickMovePlan()
 }
 
 
-// Human Pedestrian Class
+///////////////////////////////////////////////////////////////////////////
+// HumanPedestrian Class Implementation (Derived from Pedestrian)
+///////////////////////////////////////////////////////////////////////////
+
+// If GhostRacer overlaps with human, player immediately loses a life
 void HumanPedestrian::doSomethingSpecializedA()
 {
 	if (getWorld()->overlaps(this, getWorld()->getRacer()))
@@ -179,6 +198,8 @@ void HumanPedestrian::doSomethingSpecializedA()
 		return;
 	}
 }
+
+// Human picks new movement plan after moving
 void HumanPedestrian::doSomethingSpecializedB()
 {
 	setMovePlan(getMovePlan() - 1);
@@ -189,9 +210,7 @@ void HumanPedestrian::doSomethingSpecializedB()
 	pickMovePlan();
 }
 
-// If this actor is affected by holy water projectiles, then inflict that
-// affect on it and return true; otherwise, return false.
-
+// If sprayed by holy water, human changes their direction
 bool HumanPedestrian::beSprayedIfAppropriate()
 {
 	// When damaged by holy water, human pedestrians reverse their direction
@@ -201,7 +220,13 @@ bool HumanPedestrian::beSprayedIfAppropriate()
 	return true;
 }
 
- // Zombie Pedestrian Class
+
+///////////////////////////////////////////////////////////////////////////
+// ZombiePedestrian Class Implementation (Derived from Pedestrian)
+///////////////////////////////////////////////////////////////////////////
+
+// If zombie hits GhostRacer, zombie dies and player takes 5 points of damage
+// Zombie pedestrian faces downwards if close enough to GhostRacer
 void ZombiePedestrian::doSomethingSpecializedA()
 {
 	Agent* overlappingRacer = getWorld()->getOverlappingGhostRacer(this);
@@ -210,8 +235,8 @@ void ZombiePedestrian::doSomethingSpecializedA()
 		overlappingRacer->takeDamageAndPossiblyDie(-5);
 		this->takeDamageAndPossiblyDie(-2);
 		return;
-	}	
-	
+	}
+
 	// Zombie pedestrian x coordinate within 30 pixels of ghost racer and in front of ghostracer on road
 	double distanceBetweenZombieAndRacer = getX() - getWorld()->getRacer()->getX();
 	if (fabs(distanceBetweenZombieAndRacer) <= 30 && getY() > getWorld()->getRacer()->getY())
@@ -235,6 +260,7 @@ void ZombiePedestrian::doSomethingSpecializedA()
 	}
 }
 
+// Zombie pedestrian picks new movement plan
 void ZombiePedestrian::doSomethingSpecializedB()
 {
 	if (getMovePlan() > 0)
@@ -245,6 +271,8 @@ void ZombiePedestrian::doSomethingSpecializedB()
 	pickMovePlan();
 }
 
+// When a zombie pedestrian dies by holy water projectiles, the player 
+// gets points and it might drop a healing goodie in its place
 void ZombiePedestrian::specializedAgentDamageA()
 {
 	GhostRacer* overlappingRacer = getWorld()->getOverlappingGhostRacer(this);
@@ -263,8 +291,11 @@ void ZombiePedestrian::specializedAgentDamageA()
 }
 
 
+///////////////////////////////////////////////////////////////////////////
+// ZombieCab Class Implementation (Derived from NPC)
+///////////////////////////////////////////////////////////////////////////
 
-// Zombie Cab Class-----------------------------------------------------
+// If zombie cab collides with GhostRacer, it damages the player and flies off the screen 
 void ZombieCab::doSomethingSpecializedA()
 {
 	GhostRacer* overlappingRacer = getWorld()->getOverlappingGhostRacer(this);
@@ -296,13 +327,15 @@ void ZombieCab::doSomethingSpecializedA()
 	}
 }
 
+// After moving, if the closest collision avoidance worthy actor above/below the zombie cab 
+// is within 96 pixels, the cab changes speed
 void ZombieCab::doSomethingSpecializedB()
 {
 	if (getYVelocity() > getWorld()->getRacer()->getYVelocity())
 	{
 		// Find closest actor, INCLUDING GHOST RACER, that is above the zombie cab
-		// Find the ninmum y value that we track
-		if (getWorld()->getClosestAbove(getX(), getY()))
+		double min = getWorld()->getClosestAbove(getX(), getY());
+		if (fabs(min - getY()) < 96)
 		{
 			setYVelocity(getYVelocity() - 0.5);
 			return;
@@ -312,7 +345,8 @@ void ZombieCab::doSomethingSpecializedB()
 	else
 	{
 		// Find closest actor, EXCLUDING GHOST RACER, that is below the zombie cab
-		if (getWorld()->getClosestBelow(getX(), getY()))
+		double max = getWorld()->getClosestBelow(getX(), getY());
+		if (fabs(max - getY()) < 96)
 		{
 			setYVelocity(getYVelocity() + 0.5);
 			return;
@@ -327,15 +361,17 @@ void ZombieCab::doSomethingSpecializedB()
 	pickMovePlan();
 }
 
+// Zombie cab changes velocity with movement plan
 void ZombieCab::pickMovePlan()
 {
 	setMovePlan(randInt(4, 32));
 	setYVelocity(getYVelocity() + randInt(-2, 2));
 }
 
+// If zombie cab is killed by holy water, then it might leave an
+// oil slick and the player gets 200 points
 void ZombieCab::specializedAgentDamageA()
 {
-
 	int chance = randInt(1, 5);
 	if (chance == 1)
 	{
@@ -346,7 +382,12 @@ void ZombieCab::specializedAgentDamageA()
 	getWorld()->increaseScore(200);
 }
 
-// Spray Class
+
+///////////////////////////////////////////////////////////////////////////
+// Spray Class (Derived from Actor)
+///////////////////////////////////////////////////////////////////////////
+
+// Every tick, the spray sprays the first actor impacted by sprays (holy water)
 void Spray::doSomething()
 {
 	if (isDead())
@@ -362,7 +403,7 @@ void Spray::doSomething()
 
 	moveForward(SPRITE_HEIGHT);
 	m_maxTravelDistance -= SPRITE_HEIGHT;
-	
+
 	if (getY() < 0 || getX() < 0 || getX() > VIEW_WIDTH || getY() > VIEW_HEIGHT)
 	{
 		setDead();
@@ -375,28 +416,13 @@ void Spray::doSomething()
 	}
 }
 
-//if (isDead())
-//{
-//	return;
-//}
-//doSomethingSpecializedA();
-//moveRelativeToGhostRacerVerticalSpeed(getXVelocity());
-//doSomethingSpecializedB();
 
-//double vert_speed = getYVelocity() - getWorld()->getRacer()->getYVelocity();
-//double horiz_speed = dx;
-//double new_y = getY() + vert_speed;
-//double new_x = getX() + horiz_speed;
-//moveTo(new_x, new_y);
-//// Actor has gone off the screen, so set alive status to false
-//if (getY() < 0 || getX() < 0 || getX() > VIEW_WIDTH || getY() > VIEW_HEIGHT)
-//{
-//	setDead();
-//	return false;
-//}
-//return true;
+///////////////////////////////////////////////////////////////////////////
+// GhostRacerActiviatedObject Class Implementation (Derived from Actor)
+///////////////////////////////////////////////////////////////////////////
 
-// GhostRacerActivatedObject Class
+// All activated objects play a sound, increase player score (might be by zero)
+// and do something when GhostRacer overlaps with them
 void GhostRacerActivatedObject::doSomethingSpecializedB()
 {
 	GhostRacer* overlappingRacer = getWorld()->getOverlappingGhostRacer(this);
@@ -408,33 +434,55 @@ void GhostRacerActivatedObject::doSomethingSpecializedB()
 	}
 }
 
-// Oil Slick Class
+
+///////////////////////////////////////////////////////////////////////////
+// OilSlick Class Implementation (Derived from GRAO)
+///////////////////////////////////////////////////////////////////////////
+
+// GhostRacer spins when it overlaps with an oil slick
 void OilSlick::doActivity(GhostRacer* gr)
 {
 	gr->spin();
 }
 
-// Healing Goodie Class
+
+///////////////////////////////////////////////////////////////////////////
+// HealingGoodie Class Implementation (Derived from GRAO)
+///////////////////////////////////////////////////////////////////////////
+
+// GhostRacer gets 10 hp when it overlaps with a healing goodie
 void HealingGoodie::doActivity(GhostRacer* gr)
 {
 	gr->setHealth(gr->getHealth() + 10);
 	setDead();
 }
 
-// Holy Water Goodie Class
+
+///////////////////////////////////////////////////////////////////////////
+// HolyWaterGoodie Class Implementation (Derived from GRAO)
+///////////////////////////////////////////////////////////////////////////
+
+// GhostRacer gets 10 sprays when it overlaps with holywater refill
 void HolyWaterGoodie::doActivity(GhostRacer* gr)
 {
 	gr->increaseSprays(10);
 	setDead();
 }
 
-// Soul Goodie Class
+
+///////////////////////////////////////////////////////////////////////////
+// SoulGoodie Class Implementation (Derived from GRAO)
+///////////////////////////////////////////////////////////////////////////
+
+// When GhostRacer overlaps with a soul, the number of souls left to save 
+// in the current level decrements
 void SoulGoodie::doActivity(GhostRacer* gr)
 {
 	getWorld()->recordSoulSaved();
 	setDead();
 }
 
+// Every tick, the soul goodie spins by 10 degrees clockwise
 void SoulGoodie::doSomethingSpecializedB()
 {
 	GhostRacerActivatedObject::doSomethingSpecializedB();

@@ -2,17 +2,21 @@
 #include "Actor.h"
 #include "GameConstants.h"
 #include <string>
-
 #include <iostream> // defines the overloads of the << operator
 #include <sstream>  // defines the type std::ostringstream
-#include <iomanip>  // defines the manipulator setw
 using namespace std;
 
+
+///////////////////////////////////////////////////////////////////////////
+// Main Game Control Implementations (start, continue, end)
+///////////////////////////////////////////////////////////////////////////
 GameWorld* createStudentWorld(string assetPath)
 {
     return new StudentWorld(assetPath);
 }
 
+
+// Sets StudentWorld's data members to default values
 StudentWorld::StudentWorld(string assetPath)
     : GameWorld(assetPath)
 {
@@ -22,6 +26,8 @@ StudentWorld::StudentWorld(string assetPath)
     m_souls2save = 0;
 }
 
+
+// Initializes current level: creates GhostRacer, borders, bonus points, souls
 int StudentWorld::init()
 {
     m_ghostRacer = new GhostRacer(this);
@@ -31,6 +37,7 @@ int StudentWorld::init()
     return GWSTATUS_CONTINUE_GAME;
 }
 
+// Executes actions of level each tick (20 times per second)
 int StudentWorld::move()
 {
     decreaseBonusPoints();              // Decrease bonus by each tick
@@ -41,18 +48,20 @@ int StudentWorld::move()
     list<Actor*>::iterator it;
     for (it = m_actors.begin(); it != m_actors.end(); it++)
     {
-
+        // Allow each actor to do something if they're alive
         if (! (*it)->isDead())
         {
             (*it)->doSomething();
         }
 
+        // If GhostRacer is dead, immediately end level to game over or restart
         if (m_ghostRacer->getHealth() <= 0 || m_ghostRacer->isDead())
         {
             decLives();
             return GWSTATUS_PLAYER_DIED;
         }
 
+        // Level completed successfully
         if (m_souls2save <= 0)
         {
             increaseScore(m_bonusPoints);
@@ -74,7 +83,7 @@ int StudentWorld::move()
         }
     }
 
-    // Potentially add new actors to the game (e.g., oil slicks or goodies or border lines)
+    // Potentially add new actors to the game 
     addNewBorderLines();
     addNewHumanPeds();
     addNewZombiePeds();
@@ -91,6 +100,8 @@ int StudentWorld::move()
     return GWSTATUS_CONTINUE_GAME;
 }
 
+
+// Deletes all remaining actors (including GhostRacer)
 void StudentWorld::cleanUp()
 {
     delete m_ghostRacer;
@@ -108,24 +119,11 @@ StudentWorld::~StudentWorld()
 }
 
 
+///////////////////////////////////////////////////////////////////////////
+// Init() Helper Functions
+///////////////////////////////////////////////////////////////////////////
 
-// ------------------------------------ Helper Functions ------------------------------------ //
-//void StudentWorld::addBorder(int x, int y, bool isYellow)
-//{
-//    m_actors.push_back(new BorderLine(this, x, y, isYellow));
-//
-//}
-
-string StudentWorld::formatDisplayText()
-{
-    ostringstream displayText;
-    displayText << "Score: " << getScore() << "  Lvl: " << getLevel() << "  Souls2Save: " << m_souls2save
-        << "  Lives: " << getLives() << "  Health: " << m_ghostRacer->getHealth() <<
-        "  Sprays: " << m_ghostRacer->getNumSprays() << "  Bonus: " << m_bonusPoints;
-    string display = displayText.str();
-    return display;
-}
-
+// Adds initial borders on screen before level begins
 void StudentWorld::initializeBorders()
 {
     const int NUM_YELLOW_BORDER = VIEW_HEIGHT / SPRITE_HEIGHT;
@@ -152,18 +150,27 @@ void StudentWorld::initializeBorders()
     m_lastYCord = (NUM_WHITE_BORDER - 1) * (4 * SPRITE_HEIGHT);
 }
 
-// ------------------------------------------------------------------------------------------------- //
-// ------------------------------------ Move() HELPER FUNCTIONS ------------------------------------ //
-// ------------------------------------------------------------------------------------------------- //
 
-bool StudentWorld::chanceOf(int left, int right) const
+///////////////////////////////////////////////////////////////////////////
+// Move() Helper Functions
+///////////////////////////////////////////////////////////////////////////
+
+// Formats the stats displayed on the top of each level
+string StudentWorld::formatDisplayText()
 {
-    int chance = max(left, right);
-    int rand = randInt(0, chance - 1);
-    return rand == 0;
+    ostringstream displayText;
+    displayText << "Score: " << getScore() << "  Lvl: " << getLevel() << "  Souls2Save: " << m_souls2save
+        << "  Lives: " << getLives() << "  Health: " << m_ghostRacer->getHealth() <<
+        "  Sprays: " << m_ghostRacer->getNumSprays() << "  Bonus: " << m_bonusPoints;
+    string display = displayText.str();
+    return display;
 }
 
-// ------------------------------------ Add New Actors Methods ------------------------------------ //
+///////////////////////////
+// Add New Actor Methods //
+///////////////////////////
+
+// Adds new borderlines if some have gone off the screen
 void StudentWorld::addNewBorderLines()
 {
     m_lastYCord += BORDER_SPEED - m_ghostRacer->getYVelocity();
@@ -186,63 +193,88 @@ void StudentWorld::addNewBorderLines()
     }
 }
 
+// Calculates chance of adding a new actor to the level
+bool StudentWorld::chanceOf(int left, int right) const
+{
+    int chance = max(left, right);
+    int rand = randInt(0, chance - 1);
+    return rand == 0;
+}
+
+// Attempts to add new human pedestrians based on chance
 void StudentWorld::addNewHumanPeds()
 {
     if (chanceOf(200 - getLevel() * 10, 30))
         m_actors.push_back(new HumanPedestrian(this, randInt(0, VIEW_WIDTH), VIEW_HEIGHT));
 }
 
+// Attempts to add new zombie pedestrians based on chance
 void StudentWorld::addNewZombiePeds()
 {
     if (chanceOf(100 - getLevel() * 10, 20))
         m_actors.push_back(new ZombiePedestrian(this, randInt(0, VIEW_WIDTH), VIEW_HEIGHT));
 }
 
+// Attempts to add new zombie cabs based on chance
 void StudentWorld::addNewZombieCabs()
 {
     if (chanceOf(100 - getLevel() * 10, 20))
         attemptToAddZombieCab();
 }
 
+// Attempts to add new oil slicks based on chance
 void StudentWorld::addNewOilSlicks()
 {
     if (chanceOf(150 - getLevel() * 10, 40))
         m_actors.push_back(new OilSlick(this, randInt(LEFT_EDGE, RIGHT_EDGE), VIEW_HEIGHT));
 }
 
+// Attempts to add new holy water refills based on chance
 void StudentWorld::addNewHolyWaterRefillGoodies()
 {
     if (chanceOf(100 + 10 * getLevel(), 0))
         m_actors.push_back(new HolyWaterGoodie(this, randInt(LEFT_EDGE, RIGHT_EDGE), VIEW_HEIGHT));
 }
+
+// Attempts to add new lost souls based on chance
 void StudentWorld::addNewLostSoulGoodies()
 {
     if(chanceOf(100, 0))
         m_actors.push_back(new SoulGoodie(this, randInt(LEFT_EDGE, RIGHT_EDGE), VIEW_HEIGHT));
 }
 
+
+/////////////////////////////////
+// Zombie Cab Helper functions //       
+/////////////////////////////////
+
+// Attempts to add a new zombie cab based on the presence of collision avoidance worthy actors 
+// in the lane
 void StudentWorld::attemptToAddZombieCab()
 {
     int cur_lane = randInt(0, 2); // Pick random candidiate lane, corresponds to position in array
     double lanes[3] = { LEFT_CENTER, ROAD_CENTER, RIGHT_CENTER };
     int numLanes;
     double startX, startY, initialYVel;
+    // For up to each of the three lanes, check if there is no actor too close to the bottom of the screen
+    // to add a zombie cab, or if that doesn't work, if there is no actor too close to the top of the screen
+    // to add a zombie cab
     for (numLanes = 1; numLanes <= 3; numLanes++)
     {
-        Actor* closestActorToBottom = getClosestCollisionAvoidanceWorthyActorToBottomOfScreen(lanes[cur_lane]);
-        if (closestActorToBottom == nullptr || closestActorToBottom->getY() > (VIEW_HEIGHT / 3))  // cur lane is the chosen lane
+        double min = getClosestAbove(lanes[cur_lane], 0);
+        if (min == 999 || (min != 999 && min > VIEW_HEIGHT / 3.0))  // cur lane is the chosen lane
         {
             startX = lanes[cur_lane];
-            startY = SPRITE_HEIGHT / 2;
+            startY = SPRITE_HEIGHT / 2.0;
             initialYVel = m_ghostRacer->getYVelocity() + randInt(2, 4);
             break;
         }
 
-        Actor* closestActorToTop = getClosestCollisionAvoidanceWorthyActorToTopOfScreen(lanes[cur_lane]);
-        if (closestActorToTop == nullptr || closestActorToTop->getY() < (VIEW_HEIGHT * 2 / 3))
+        double max = getClosestBelow(lanes[cur_lane], VIEW_HEIGHT - 1);
+        if (max == -999 || (max != -999 && max < (VIEW_HEIGHT * 2.0 / 3.0)))
         {
             startX = lanes[cur_lane];
-            startY = VIEW_HEIGHT - SPRITE_HEIGHT / 2;
+            startY = VIEW_HEIGHT - SPRITE_HEIGHT / 2.0;
             initialYVel = m_ghostRacer->getYVelocity() - randInt(2, 4);
             break;
         }
@@ -264,8 +296,117 @@ void StudentWorld::attemptToAddZombieCab()
     Actor* newZombieCab = new ZombieCab(this, startX, startY);
     newZombieCab->setYVelocity(initialYVel);
     m_actors.push_back(newZombieCab);
-
 }
+
+// Returns the y coordinate of the closest actor ABOVE the reference x and y coordinates
+// If no such actor exists, returns 999
+// Check INCLUDES GhostRacer
+int StudentWorld::getClosestAbove(double refX, double refY)
+{
+    vector<double> possibleYCords;
+    bool foundActorInLane = false;
+    int curLane = determineLaneNumber(refX);
+    // GhostRacer included
+    if (determineLaneNumber(m_ghostRacer->getX()) == curLane && m_ghostRacer->getY() > refY)
+    {
+        possibleYCords.push_back(m_ghostRacer->getY());
+        foundActorInLane = true;
+    }
+
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++)
+    {
+        if ((*it)->isCollisionAvoidanceWorthy())
+        {
+            if (determineLaneNumber((*it)->getX()) == curLane && (*it)->getY() > refY)
+            {
+                possibleYCords.push_back((*it)->getY());
+                foundActorInLane = true;
+            }
+        }
+    }
+
+    // Find the minimum of all eligble y coordinates
+    double min = 999;
+    for (vector<double>::iterator it = possibleYCords.begin(); it != possibleYCords.end(); it++)
+    {
+        if ((*it) < min)
+        {
+            min = (*it);
+        }
+    }
+
+    if (foundActorInLane)
+        return min;
+    return 999;
+}
+
+// Returns the y coordinate of the closest actor BELOW the reference x and y coordinates
+// If no such actor exists, returns -999
+// Check EXCLUDES GhostRacer
+int StudentWorld::getClosestBelow(double refX, double refY)
+{
+    vector<double> possibleYCords;
+    bool foundActorInLane = false;
+    int curLane = determineLaneNumber(refX);
+
+    // Gather all possible y coordinates in the lane of refX that are LESS than refY
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++)
+    {
+        if ((*it)->isCollisionAvoidanceWorthy())
+        {
+            if (determineLaneNumber((*it)->getX()) == curLane && (*it)->getY() < refY)
+            {
+                possibleYCords.push_back((*it)->getY());
+                foundActorInLane = true;
+            }
+        }
+    }
+
+    // Find max of all eligible y coordinates
+    double max = -999;
+    for (vector<double>::iterator it = possibleYCords.begin(); it != possibleYCords.end(); it++)
+    {
+        if ((*it) > max)
+        {
+            max = (*it);
+        }
+    }
+
+    if (foundActorInLane)
+        return max;
+    return -999;
+}
+
+// Returns true if the given x coordinate x1, is within the left and right bounds
+// Assumes leftBoundary and rightBoundary are valid lane values
+bool StudentWorld::isWithinLane(double x1, double leftBoundary, double rightBoundary) const
+{
+    if (x1 >= leftBoundary && x1 < rightBoundary)
+        return true;
+    return false;
+}
+
+// Determines lane number of the given x coordinate
+int StudentWorld::determineLaneNumber(double x1) const
+{
+
+    if (isWithinLane(x1, LEFT_EDGE, LEFT_EDGE + LANE_WIDTH))
+        return LEFT_LANE;
+
+    if (isWithinLane(x1, LEFT_EDGE + LANE_WIDTH, RIGHT_EDGE - LANE_WIDTH))
+        return MIDDLE_LANE;
+
+    if (isWithinLane(x1, RIGHT_EDGE - LANE_WIDTH, RIGHT_EDGE))
+        return RIGHT_LANE;
+
+    return 999;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Public Actor Interaction Methods
+///////////////////////////////////////////////////////////////////////////
+
+// Determines if two actors overlap
 bool StudentWorld::overlaps(const Actor* a1, const Actor* a2) const
 {
     double delta_x = fabs(a1->getX() - a2->getX());
@@ -280,7 +421,6 @@ bool StudentWorld::overlaps(const Actor* a1, const Actor* a2) const
     return false;
 }
 
-
 // If actor a overlaps this world's GhostRacer, return a pointer to the
 // GhostRacer; otherwise, return nullptr
 GhostRacer* StudentWorld::getOverlappingGhostRacer(Actor* a) const
@@ -291,8 +431,8 @@ GhostRacer* StudentWorld::getOverlappingGhostRacer(Actor* a) const
 }
 
 // If actor a overlaps some live actor that is affected by a holy water
-   // projectile, inflict a holy water spray on that actor and return true;
-   // otherwise, return false.  (See Actor::beSprayedIfAppropriate.)
+// projectile, inflict a holy water spray on that actor and return true;
+// otherwise, return false.  (See Actor::beSprayedIfAppropriate.)
 bool StudentWorld::sprayFirstAppropriateActor(Actor* a)
 {
     list<Actor*>::iterator it;
@@ -309,153 +449,6 @@ bool StudentWorld::sprayFirstAppropriateActor(Actor* a)
 
 }
 
-Actor* StudentWorld::getClosestCollisionAvoidanceWorthyActorToBottomOfScreen(double referencePointX)
-{
-    double minYValue = 999;
-    Actor* closestActorToZero = nullptr;
-    int currentLane = determineLaneNumber(referencePointX);
-    if (currentLane == determineLaneNumber(m_ghostRacer->getX()))
-    {
-        minYValue = m_ghostRacer->getY();
-        closestActorToZero = m_ghostRacer;
-    }
-    
-    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++)
-    {
-        if ((*it)->isCollisionAvoidanceWorthy())
-        {
-            if (currentLane == determineLaneNumber((*it)->getX()))
-            {
-                if ((*it)->getY() < minYValue)
-                {
-                    minYValue = (*it)->getY();
-                    closestActorToZero = (*it);
-                }
-            }
-        }
-    }
-    if (minYValue == 999)
-        return nullptr;
-    return closestActorToZero;
-}
 
-Actor* StudentWorld::getClosestCollisionAvoidanceWorthyActorToTopOfScreen(double referencePointX)
-{
-    double maxYValue = -999;
-    Actor* closestActorToTop = nullptr;
-    int currentLane = determineLaneNumber(referencePointX);
-    if (currentLane == determineLaneNumber(m_ghostRacer->getX()))
-    {
-        maxYValue = m_ghostRacer->getY();
-        closestActorToTop = m_ghostRacer;
-    }
 
-    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++)
-    {
-        if ((*it)->isCollisionAvoidanceWorthy())
-        {
-            if (currentLane == determineLaneNumber((*it)->getX()))
-            {
-                if ((*it)->getY() > maxYValue)
-                {
-                    maxYValue = (*it)->getY();
-                    closestActorToTop = (*it);
-                }
-            }
-        }
-    }
-    if (maxYValue == -999)
-        return nullptr;
-    return closestActorToTop;
-}
-
-bool StudentWorld::getClosestAbove(double refX, double refY)
-{
-    vector<double> possibleYCords;
-    bool foundActorInLane = false;
-    int curLane = determineLaneNumber(refX);
-    if (determineLaneNumber(m_ghostRacer->getX()) == curLane && m_ghostRacer->getY() > refY)
-    {
-        possibleYCords.push_back(m_ghostRacer->getY());
-        foundActorInLane = true;
-    }
-    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++)
-    {
-        if ((*it)->isCollisionAvoidanceWorthy())
-        {
-            if (determineLaneNumber((*it)->getX()) == curLane && (*it)->getY() > refY)
-            {
-                possibleYCords.push_back((*it)->getY());
-                foundActorInLane = true;
-            }
-        }
-    }
-
-    double min = 999;
-    for (vector<double>::iterator it = possibleYCords.begin(); it != possibleYCords.end(); it++)
-    {
-        if ((*it) < min)
-        {
-            min = (*it);
-        }
-    }
-
-    if (foundActorInLane && fabs(min - refY) < 96)
-        return true;
-    return false;
-}
-
-bool StudentWorld::getClosestBelow(double refX, double refY)
-{
-    vector<double> possibleYCords;
-    bool foundActorInLane = false;
-    int curLane = determineLaneNumber(refX);
-    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++)
-    {
-        if ((*it)->isCollisionAvoidanceWorthy())
-        {
-            if (determineLaneNumber((*it)->getX()) == curLane && (*it)->getY() < refY)
-            {
-                possibleYCords.push_back((*it)->getY());
-                foundActorInLane = true;
-            }
-        }
-    }
-
-    double min = 999;
-    for (vector<double>::iterator it = possibleYCords.begin(); it != possibleYCords.end(); it++)
-    {
-        if ((*it) < min)
-        {
-            min = (*it);
-        }
-    }
-
-    if (foundActorInLane && fabs(min - refY) < 96)
-        return true;
-    return false;
-    
-}
-
-bool StudentWorld::isWithinLane(double x1, double leftBoundary, double rightBoundary) const
-{
-    if (x1 >= leftBoundary && x1 < rightBoundary)
-        return true;
-    return false;
-}
-
-int StudentWorld::determineLaneNumber(double x1) const
-{
-   
-    if (isWithinLane(x1, LEFT_EDGE, LEFT_EDGE + LANE_WIDTH))
-        return LEFT_LANE;
-
-    if (isWithinLane(x1, LEFT_EDGE + LANE_WIDTH, RIGHT_EDGE - LANE_WIDTH))
-        return MIDDLE_LANE;
-
-    if (isWithinLane(x1, RIGHT_EDGE - LANE_WIDTH, RIGHT_EDGE))
-        return RIGHT_LANE;
-
-    return 999;
-}
 
